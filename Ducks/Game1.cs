@@ -11,6 +11,7 @@ namespace Ducks
 {
     using System.Collections;
     using System.Collections.Generic;
+    using System.Diagnostics;
 
     using Ducks.Components;
 
@@ -32,17 +33,15 @@ namespace Ducks
         /// <summary>
         /// Player Related code
         /// </summary>
-        private Entity player;
         private Texture2D playerTexture2D;
 
+
+
         private List<Entity> playerStack;
-        private List<LinkedListNode<Command>> commandStack;
+        private List<LinkedList<Command>> commandStack;
+        private List<LinkedListNode<Command>> currentNodeStack;
         private List<Vector2> posistionStack;
         private int level = 0;
-
-        private LinkedList<Command> commands;
-
-        private LinkedListNode<Command> currentNode;
 
         private bool replaying;
 
@@ -63,9 +62,6 @@ namespace Ducks
 
             // Input initialization
             this.previousState = Keyboard.GetState();
-
-            this.commands = new LinkedList<Command>();
-            this.currentNode = this.commands.First;
 
             base.Initialize();
         }
@@ -108,8 +104,14 @@ namespace Ducks
             var newPlayer = new Entity(playerPosition);
             newPlayer.LoadTexture(this.playerTexture2D);
 
+            // Setup stacks
+            this.level = 0;
             this.posistionStack = new List<Vector2> { playerPosition };
             this.playerStack = new List<Entity> { newPlayer };
+
+            this.commandStack = new List<LinkedList<Command>>();
+            this.currentNodeStack = new List<LinkedListNode<Command>>();
+
         }
 
         /// <summary>
@@ -133,26 +135,28 @@ namespace Ducks
             const float Speed = 100;
 
             var deltaPosition = Speed * (float)gameTime.ElapsedGameTime.TotalSeconds;
+
             var currentPlayer = this.GetCurrentPlayer();
+            var currrentCommands = this.commandStack[this.level];
 
             if (state.IsKeyDown(Keys.Up))
             {
-                this.commands.AddLast(new Command(this.gameTick, currentPlayer, new Vector2(0.0f, -deltaPosition)));
+                currrentCommands.AddLast(new Command(this.gameTick, currentPlayer, new Vector2(0.0f, -deltaPosition)));
             }
 
             if (state.IsKeyDown(Keys.Down))
             {
-                this.commands.AddLast(new Command(this.gameTick, currentPlayer, new Vector2(0.0f, deltaPosition)));
+                currrentCommands.AddLast(new Command(this.gameTick, currentPlayer, new Vector2(0.0f, deltaPosition)));
             }
 
             if (state.IsKeyDown(Keys.Left))
             {
-                this.commands.AddLast(new Command(this.gameTick, currentPlayer, new Vector2(-deltaPosition, 0.0f)));
+                currrentCommands.AddLast(new Command(this.gameTick, currentPlayer, new Vector2(-deltaPosition, 0.0f)));
             }
 
             if (state.IsKeyDown(Keys.Right))
             {
-                this.commands.AddLast(new Command(this.gameTick, currentPlayer, new Vector2(deltaPosition, 0.0f)));
+                currrentCommands.AddLast(new Command(this.gameTick, currentPlayer, new Vector2(deltaPosition, 0.0f)));
             }
 
             if (state.IsKeyDown(Keys.A) & !this.previousState.IsKeyDown(Keys.A))
@@ -161,13 +165,15 @@ namespace Ducks
 
                 if (!this.replaying)
                 {
-                    this.commands.Clear();
+                    currrentCommands.Clear();
                 }
                 else
                 {
                     this.gameTick = 0;
-                    this.currentNode = this.commands.First;
+                    // this.currentNode = this.commands.First;
                 }
+
+                Debug.WriteLine("replaying: " + this.replaying);
             }
 
             if (state.IsKeyDown(Keys.S) & !this.previousState.IsKeyDown(Keys.S))
@@ -178,13 +184,12 @@ namespace Ducks
             // Excuting commands
             if (this.replaying)
             {
-                this.UpdateCommandList();
+                this.UpdateCommandList(this.commandStack[this.level], this.currentNodeStack[this.level]);
             }
             else
             {
-                this.ProcessNormalCommands();
+                this.ProcessNormalCommands(this.commandStack[this.level]);
             }
-            
 
             base.Update(gameTime);
             this.previousState = state;
@@ -193,43 +198,53 @@ namespace Ducks
         /// <summary>
         /// If not replaying, process player's commands as regular
         /// </summary>
-        private void ProcessNormalCommands()
+        /// <param name="commands">
+        /// The commands.
+        /// </param>
+        private void ProcessNormalCommands(LinkedList<Command> commands)
         {
-            this.currentNode = this.commands.Last;
+            var currentNode = commands.Last;
 
-            if (this.currentNode == null || this.currentNode.Value.Tick != this.gameTick)
+            if (currentNode == null || currentNode.Value.Tick != this.gameTick)
             {
                 return;
             }
 
-            var preNode = this.currentNode.Previous;
+            var preNode = currentNode.Previous;
             while (preNode != null && preNode.Value.Tick == this.gameTick)
             {
-                this.currentNode = preNode;
-                preNode = this.currentNode.Previous;
+                currentNode = preNode;
+                preNode = currentNode.Previous;
             }
 
-            while (this.currentNode != null)
+            while (currentNode != null)
             {
-                var command = this.currentNode.Value;
+                var command = currentNode.Value;
                 command.Execute();
 
-                this.currentNode = this.currentNode.Next;
+                currentNode = currentNode.Next;
             }
         }
 
         /// <summary>
         /// Replay the commands player did
         /// </summary>
-        private void UpdateCommandList()
+        /// <param name="commands">
+        /// The commands.
+        /// </param>
+        /// <param name="currentNode">
+        /// The current Node.
+        /// </param>
+        private void UpdateCommandList(LinkedList<Command> commands, LinkedListNode<Command> currentNode)
         {
-            while (this.currentNode != null)
+
+            while (currentNode != null)
             {
-                var command = this.currentNode.Value;
+                var command = currentNode.Value;
                 if (command.Tick == this.gameTick)
                 {
                     command.Execute();
-                    this.currentNode = this.currentNode.Next;
+                    currentNode = currentNode.Next;
                 }
                 else
                 {
@@ -252,10 +267,11 @@ namespace Ducks
             this.gameTick = 0;
 
             // Making new player at
-            var p = new Entity(this.posistionStack[this.level]);
+            var p = new Entity(this.posistionStack[this.level - 1]);
+            p.LoadTexture(this.playerTexture2D);
 
             // Save starting position for this iteration
-
+            this.playerStack.Add(p);
         }
     }
 }
