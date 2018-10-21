@@ -13,15 +13,15 @@ namespace Ducks.Components
     using Microsoft.Xna.Framework.Graphics;
 
     /// <summary>
-    /// The entity. 
+    ///     The entity.
     /// </summary>
-    internal class Entity
+    public class Entity
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="Entity"/> class.
+        ///     Initializes a new instance of the <see cref="Entity" /> class.
         /// </summary>
         /// <param name="initPosition">
-        /// The init position.
+        ///     The init position.
         /// </param>
         public Entity(Vector2 initPosition)
         {

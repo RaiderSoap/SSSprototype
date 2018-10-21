@@ -9,82 +9,27 @@
 
 namespace Ducks
 {
-    using System.Collections;
     using System.Collections.Generic;
-    using System.Diagnostics;
 
     using Ducks.Components;
 
     using Microsoft.Xna.Framework;
-    using Microsoft.Xna.Framework.Graphics;
     using Microsoft.Xna.Framework.Input;
 
     /// <summary>
     ///     This is the main type for your game.
     /// </summary>
-    public class Game1 : Game
+    public class Game1 : GameBase
     {
-        private GraphicsDeviceManager graphics;
+        private List<Command> executingCommands;
 
-        private SpriteBatch spriteBatch;
+        private int gameTick;
 
-        private uint gameTick = 0;
+        private List<Iteration> iterations;
 
-        /// <summary>
-        /// Player Related code
-        /// </summary>
-        private Texture2D playerTexture2D;
+        private int level;
 
-
-
-        private List<Entity> playerStack;
-        private List<LinkedList<Command>> commandStack;
-        private List<LinkedListNode<Command>> currentNodeStack;
-        private List<Vector2> posistionStack;
-        private int level = 0;
-
-        private bool replaying;
-
-        private KeyboardState previousState;
-
-        public Game1()
-        {
-            this.graphics = new GraphicsDeviceManager(this);
-            this.Content.RootDirectory = "Content";
-        }
-
-        protected override void Initialize()
-        {
-            // Screen and Resolution initialization
-            this.graphics.PreferredBackBufferWidth = 1280;
-            this.graphics.PreferredBackBufferHeight = 768;
-            this.graphics.ApplyChanges();
-
-            // Input initialization
-            this.previousState = Keyboard.GetState();
-
-            base.Initialize();
-        }
-
-        /// <summary>
-        ///     This is called when the game should draw itself.
-        /// </summary>
-        /// <param name="gameTime">Provides a snapshot of timing values.</param>
-        protected override void Draw(GameTime gameTime)
-        {
-            this.GraphicsDevice.Clear(Color.CornflowerBlue);
-
-            this.spriteBatch.Begin();
-
-            foreach (var entity in this.playerStack)
-            {
-                this.spriteBatch.Draw(entity.Texture, entity.Position, Color.White);
-            }
-
-            this.spriteBatch.End();
-
-            base.Draw(gameTime);
-        }
+        private Vector2 spawnPosition;
 
         /// <summary>
         ///     LoadContent will be called once per game and is the place to load
@@ -92,26 +37,21 @@ namespace Ducks
         /// </summary>
         protected override void LoadContent()
         {
-            this.spriteBatch = new SpriteBatch(this.GraphicsDevice);
+            base.LoadContent();
 
-            this.playerTexture2D = this.Content.Load<Texture2D>("npc");
-
-            // Setup new player
-            var playerPosition = new Vector2(
+            this.spawnPosition = new Vector2(
                 this.graphics.GraphicsDevice.Viewport.Width / 2.0f,
                 this.graphics.GraphicsDevice.Viewport.Height / 2.0f);
 
-            var newPlayer = new Entity(playerPosition);
-            newPlayer.LoadTexture(this.playerTexture2D);
+            // Make a player
+            var player = new Entity(this.spawnPosition);
+            this.entities.Add(player);
 
-            // Setup stacks
+            // Making an container for iterations
             this.level = 0;
-            this.posistionStack = new List<Vector2> { playerPosition };
-            this.playerStack = new List<Entity> { newPlayer };
+            this.iterations = new List<Iteration> { new Iteration(this.gameTick, player) };
 
-            this.commandStack = new List<LinkedList<Command>>();
-            this.currentNodeStack = new List<LinkedListNode<Command>>();
-
+            this.executingCommands = new List<Command>();
         }
 
         /// <summary>
@@ -137,141 +77,69 @@ namespace Ducks
             var deltaPosition = Speed * (float)gameTime.ElapsedGameTime.TotalSeconds;
 
             var currentPlayer = this.GetCurrentPlayer();
-            var currrentCommands = this.commandStack[this.level];
 
             if (state.IsKeyDown(Keys.Up))
             {
-                currrentCommands.AddLast(new Command(this.gameTick, currentPlayer, new Vector2(0.0f, -deltaPosition)));
+                this.executingCommands.Add(
+                    new Command(this.gameTick, currentPlayer, new Vector2(0.0f, -deltaPosition)));
             }
 
             if (state.IsKeyDown(Keys.Down))
             {
-                currrentCommands.AddLast(new Command(this.gameTick, currentPlayer, new Vector2(0.0f, deltaPosition)));
+                this.executingCommands.Add(new Command(this.gameTick, currentPlayer, new Vector2(0.0f, deltaPosition)));
             }
 
             if (state.IsKeyDown(Keys.Left))
             {
-                currrentCommands.AddLast(new Command(this.gameTick, currentPlayer, new Vector2(-deltaPosition, 0.0f)));
+                this.executingCommands.Add(
+                    new Command(this.gameTick, currentPlayer, new Vector2(-deltaPosition, 0.0f)));
             }
 
             if (state.IsKeyDown(Keys.Right))
             {
-                currrentCommands.AddLast(new Command(this.gameTick, currentPlayer, new Vector2(deltaPosition, 0.0f)));
-            }
-
-            if (state.IsKeyDown(Keys.A) & !this.previousState.IsKeyDown(Keys.A))
-            {
-                this.replaying = !this.replaying;
-
-                if (!this.replaying)
-                {
-                    currrentCommands.Clear();
-                }
-                else
-                {
-                    this.gameTick = 0;
-                    // this.currentNode = this.commands.First;
-                }
-
-                Debug.WriteLine("replaying: " + this.replaying);
+                this.executingCommands.Add(new Command(this.gameTick, currentPlayer, new Vector2(deltaPosition, 0.0f)));
             }
 
             if (state.IsKeyDown(Keys.S) & !this.previousState.IsKeyDown(Keys.S))
             {
-                this.EnterNextInteration();
+                this.EnterNextIteration();
             }
 
-            // Excuting commands
-            if (this.replaying)
+            // Process regular commands and store them to current Iteration.
+            var currentIteration = this.GetCurrentIteration();
+            foreach (var cmd in this.executingCommands)
             {
-                this.UpdateCommandList(this.commandStack[this.level], this.currentNodeStack[this.level]);
+                cmd.Execute();
+                currentIteration.AddCommand(cmd);
             }
-            else
-            {
-                this.ProcessNormalCommands(this.commandStack[this.level]);
-            }
+
+            this.executingCommands.Clear();
 
             base.Update(gameTime);
             this.previousState = state;
         }
 
-        /// <summary>
-        /// If not replaying, process player's commands as regular
-        /// </summary>
-        /// <param name="commands">
-        /// The commands.
-        /// </param>
-        private void ProcessNormalCommands(LinkedList<Command> commands)
+        private void EnterNextIteration()
         {
-            var currentNode = commands.Last;
+            // First, make an new player instance at the spawn point
+            var player = new Entity(this.spawnPosition);
+            this.entities.Add(player);
 
-            if (currentNode == null || currentNode.Value.Tick != this.gameTick)
-            {
-                return;
-            }
+            // Second, 
+            var newIteration = new Iteration(this.gameTick, player);
+            this.iterations.Add(newIteration);
 
-            var preNode = currentNode.Previous;
-            while (preNode != null && preNode.Value.Tick == this.gameTick)
-            {
-                currentNode = preNode;
-                preNode = currentNode.Previous;
-            }
-
-            while (currentNode != null)
-            {
-                var command = currentNode.Value;
-                command.Execute();
-
-                currentNode = currentNode.Next;
-            }
+            this.level++;
         }
 
-        /// <summary>
-        /// Replay the commands player did
-        /// </summary>
-        /// <param name="commands">
-        /// The commands.
-        /// </param>
-        /// <param name="currentNode">
-        /// The current Node.
-        /// </param>
-        private void UpdateCommandList(LinkedList<Command> commands, LinkedListNode<Command> currentNode)
+        private Iteration GetCurrentIteration()
         {
-
-            while (currentNode != null)
-            {
-                var command = currentNode.Value;
-                if (command.Tick == this.gameTick)
-                {
-                    command.Execute();
-                    currentNode = currentNode.Next;
-                }
-                else
-                {
-                    break;
-                }
-            }
+            return this.iterations[this.level];
         }
 
         private Entity GetCurrentPlayer()
         {
-            // Todo: do some checking
-            return this.playerStack[this.level];
-        }
-
-        private void EnterNextInteration()
-        {
-            this.level++;
-
-            // Clear current game tick
-            this.gameTick = 0;
-
-            // Making new player at
-            var p = new Entity(this.posistionStack[this.level - 1]);
-            p.LoadTexture(this.playerTexture2D);
-
-            // Save starting position for this iteration
-            this.playerStack.Add(p);
+            return this.entities[this.level];
         }
     }
 }
