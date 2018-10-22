@@ -37,7 +37,7 @@ namespace Ducks.Components
 
         public virtual void Execute()
         {
-            this.unit.MoveTo(this.deltaPosition);
+            this.unit.MoveBy(this.deltaPosition);
         }
     }
 }

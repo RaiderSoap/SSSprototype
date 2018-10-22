@@ -72,7 +72,7 @@ namespace Ducks
             }
 
             var state = Keyboard.GetState();
-            const float Speed = 100;
+            const float Speed = 250;
 
             var deltaPosition = Speed * (float)gameTime.ElapsedGameTime.TotalSeconds;
 
@@ -102,7 +102,7 @@ namespace Ducks
 
             if (state.IsKeyDown(Keys.S) & !this.previousState.IsKeyDown(Keys.S))
             {
-                this.EnterNextIteration();
+                this.EndCurrentIteration();
             }
 
             // Process regular commands and store them to current Iteration.
@@ -115,20 +115,31 @@ namespace Ducks
 
             this.executingCommands.Clear();
 
+            // Update all iterations, ignore the top most iteration
+            for (int i = 0; i < this.iterations.Count - 1; i++)
+            {
+                this.iterations[i].Update(this.gameTick);
+            }
+
             base.Update(gameTime);
             this.previousState = state;
         }
 
-        private void EnterNextIteration()
+        private void EndCurrentIteration()
         {
             // First, make an new player instance at the spawn point
             var player = new Entity(this.spawnPosition);
             this.entities.Add(player);
 
-            // Second, 
+            // Second, reset all previous iterations to original state
+            this.iterations.ForEach(it => it.Reset());
+
+            // Third, create the last iteration
             var newIteration = new Iteration(this.gameTick, player);
             this.iterations.Add(newIteration);
 
+            // Finally, reset the game tick count and progress the level
+            this.gameTick = 0;
             this.level++;
         }
 

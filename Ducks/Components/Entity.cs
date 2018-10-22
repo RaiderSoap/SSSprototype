@@ -32,14 +32,26 @@ namespace Ducks.Components
 
         public Texture2D Texture { get; private set; }
 
+        public float alpha = 1.0f;
+
         public void LoadTexture(Texture2D texture)
         {
             this.Texture = texture;
         }
 
-        public void MoveTo(Vector2 deltaPosition)
+        public void MoveBy(Vector2 deltaPosition)
         {
             this.Position += deltaPosition;
+        }
+
+        public void SetPosition(Vector2 position)
+        {
+            this.Position = position;
+        }
+
+        public void Update()
+        {
+
         }
     }
 }

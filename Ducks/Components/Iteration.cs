@@ -33,7 +33,7 @@ namespace Ducks.Components
             this.StartingPosition = avatar.Position;
 
             this.commands = new LinkedList<Command>();
-            this.currentNode = this.commands.First;
+            this.currentNode = null;
         }
 
         public Vector2 StartingPosition { get; }
@@ -45,8 +45,18 @@ namespace Ducks.Components
 
         public void Update(int currentTick)
         {
+            if (this.currentNode == null)
+            {
+                this.currentNode = this.commands.First;
+            }
+
             while (this.currentNode != null)
             {
+                if (this.currentNode == this.commands.Last)
+                {
+                    return;
+                }
+
                 var command = this.currentNode.Value;
                 if (command.Tick == currentTick)
                 {
@@ -56,12 +66,19 @@ namespace Ducks.Components
                 else if (command.Tick < currentTick)
                 {
                     Debug.WriteLine("Should not happen");
+                    return;
                 }
                 else
                 {
                     break;
                 }
             }
+        }
+
+        public void Reset()
+        {
+            this.currentNode = this.commands.First;
+            this.avatar.SetPosition(this.StartingPosition);
         }
     }
 }
