@@ -34,6 +34,14 @@ namespace Ducks.Components
 
         public float alpha = 1.0f;
 
+        public enum States
+        {
+            Normal,
+            Teleport
+        }
+
+        private States EntityState;
+
         public void LoadTexture(Texture2D texture)
         {
             this.Texture = texture;
@@ -49,9 +57,28 @@ namespace Ducks.Components
             this.Position = position;
         }
 
+        public void SetState(States newState)
+        {
+            this.EntityState = newState;
+        }
+
+        public void Kill()
+        {
+            this.EntityState = States.Teleport;
+        }
+
         public void Update()
         {
+            if (this.EntityState == States.Teleport)
+            {
+                this.alpha = MathHelper.Max(0.0f, this.alpha - (1 / 60.0f));
+            }
+        }
 
+        public void Reset()
+        {
+            this.EntityState = States.Normal;
+            this.alpha = 1.0f;
         }
     }
 }

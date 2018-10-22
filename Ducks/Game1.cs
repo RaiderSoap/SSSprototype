@@ -14,6 +14,7 @@ namespace Ducks
     using Ducks.Components;
 
     using Microsoft.Xna.Framework;
+    using Microsoft.Xna.Framework.Graphics;
     using Microsoft.Xna.Framework.Input;
 
     /// <summary>
@@ -31,6 +32,7 @@ namespace Ducks
 
         private Vector2 spawnPosition;
 
+
         /// <summary>
         ///     LoadContent will be called once per game and is the place to load
         ///     all of your content.
@@ -38,7 +40,7 @@ namespace Ducks
         protected override void LoadContent()
         {
             base.LoadContent();
-
+            
             this.spawnPosition = new Vector2(
                 this.graphics.GraphicsDevice.Viewport.Width / 2.0f,
                 this.graphics.GraphicsDevice.Viewport.Height / 2.0f);
@@ -120,6 +122,9 @@ namespace Ducks
             {
                 this.iterations[i].Update(this.gameTick);
             }
+
+            // Update all game entities
+            this.entities.ForEach(entity => entity.Update());
 
             base.Update(gameTime);
             this.previousState = state;

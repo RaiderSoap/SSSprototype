@@ -54,6 +54,7 @@ namespace Ducks.Components
             {
                 if (this.currentNode == this.commands.Last)
                 {
+                    this.avatar.Kill();
                     return;
                 }
 
@@ -79,6 +80,7 @@ namespace Ducks.Components
         {
             this.currentNode = this.commands.First;
             this.avatar.SetPosition(this.StartingPosition);
+            this.avatar.Reset();
         }
     }
 }

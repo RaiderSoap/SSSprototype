@@ -27,6 +27,7 @@ namespace Ducks
         protected GraphicsDeviceManager graphics;
 
         protected Texture2D playerTexture2D;
+        private Texture2D gameMap;
 
         protected KeyboardState previousState;
 
@@ -49,9 +50,12 @@ namespace Ducks
 
             this.spriteBatch.Begin();
 
+            this.spriteBatch.Draw(this.gameMap, Vector2.Zero, Color.White);
+
+
             foreach (var entity in this.entities)
             {
-                this.spriteBatch.Draw(this.playerTexture2D, entity.Position, Color.White);
+                this.spriteBatch.Draw(this.playerTexture2D, entity.Position, Color.White * entity.alpha);
             }
 
             this.spriteBatch.End();
@@ -80,7 +84,9 @@ namespace Ducks
         {
             this.spriteBatch = new SpriteBatch(this.GraphicsDevice);
 
-            this.playerTexture2D = this.Content.Load<Texture2D>("npc");
+            this.playerTexture2D = this.Content.Load<Texture2D>("duck");
+            this.gameMap = this.Content.Load<Texture2D>("super_rough_map");
+
         }
     }
 }
